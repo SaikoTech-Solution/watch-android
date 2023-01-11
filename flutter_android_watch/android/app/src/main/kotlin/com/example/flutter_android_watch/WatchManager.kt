@@ -8,20 +8,28 @@ import com.inuker.bluetooth.library.Code
 import com.inuker.bluetooth.library.search.SearchResult
 import com.inuker.bluetooth.library.search.response.SearchResponse
 import com.veepoo.protocol.VPOperateManager
-import com.veepoo.protocol.model.datas.HeartData
 import io.flutter.Log
 import com.veepoo.protocol.listener.base.IBleWriteResponse
-import com.veepoo.protocol.listener.data.IPwdDataListener
 import com.veepoo.protocol.listener.data.ISocialMsgDataListener
 import com.veepoo.protocol.model.datas.FunctionSocailMsgData
-import com.veepoo.protocol.model.datas.PwdData
 
 object WatchManager {
 
-    private var deviceArray = sortedSetOf<SearchResult>({ s1, s2 -> s2.rssi - s1.rssi })
+    private var peripherals = sortedSetOf<SearchResult>({ s1, s2 -> s2.rssi - s1.rssi })
     private val writeResponse = IBleWriteResponse {}
 
-    fun startScan(context: Context, onComplete: (Result<List<Map<String, String>>>) -> Unit) {
+    fun isConnected(context: Context, completion: (Result<Pair<String, String>>) -> Unit) {
+        val isConnected = VPOperateManager.getMangerInstance(context).isNetworkConnected(context).toString()
+        completion(Result.success(Pair("isConnected", isConnected.toString())))
+    }
+
+    fun disconnect(context: Context, completion: (Result<Pair<String, String>>) -> Unit) {
+        VPOperateManager.getMangerInstance(context).disconnectWatch {
+            completion(Result.success(Pair("disconnect", true.toString())))
+        }
+    }
+
+    fun startScan(context: Context, onComplete: (Result<Map<String, List<Map<String, String>>>>) -> Unit) {
         VPOperateManager.getMangerInstance(context).startScanDevice(object : SearchResponse {
             override fun onDeviceFounded(searchResult: SearchResult?) {
                 if (searchResult == null) {
@@ -36,13 +44,14 @@ object WatchManager {
             }
 
             override fun onSearchStopped() {
-                onComplete(Result.success(deviceArray.map {
+                onComplete(Result.success(mapOf("deviceArray" to peripherals.map {
                     if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT ) != PackageManager.PERMISSION_GRANTED) {
                         return
                     }
                     mapOf("name" to it.device.name, "deviceAddress" to it.device.address)
-                }))
+                })))
             }
+
 
             override fun onSearchCanceled() {
                 Log.d("WatchManager", "onSearchCanceled")
@@ -50,25 +59,26 @@ object WatchManager {
         })
     }
 
-    fun addPeripheralToDeviceArray(searchResult: SearchResult) {
-        deviceArray.add(searchResult)
+    private fun addPeripheralToDeviceArray(searchResult: SearchResult) {
+        peripherals.add(searchResult)
     }
 
-    fun startConnection(context: Context, deviceAddress: String, onComplete: (Result<String>) -> Unit) {
+    fun startConnection(context: Context, deviceAddress: String, onComplete: (Result<Map<String, Boolean>>) -> Unit) {
         VPOperateManager.getMangerInstance(context).stopScanDevice()
         VPOperateManager.getMangerInstance(context)
             .connectDevice(deviceAddress, { connectState, _, _ ->
                 if (connectState == Code.REQUEST_SUCCESS) {
-                    onComplete(Result.success("SUCCESS"))
+                    onComplete(Result.success(mapOf("startConnection" to true)))
                 }
             }) { _ -> }
     }
 
-    fun getHeartRate(context: Context, date: String, completion: (Result<String>) -> Unit) {
+    fun getHeartRate(context: Context, date: String, completion: (Result<Pair<String, String>>) -> Unit)  {
         VPOperateManager.getMangerInstance(context)
             .confirmDevicePwd({}, { _ ->
                 VPOperateManager.getMangerInstance(context).startDetectHeart(writeResponse) {
-                    completion(Result.success(it.toString()))
+                    val heartRate = it.data
+                    completion(Result.success(Pair("HEART_RATE", heartRate.toString())))
                     VPOperateManager.getMangerInstance(context).stopDetectHeart(writeResponse)
                 }
             }, {}, object : ISocialMsgDataListener {
@@ -79,11 +89,12 @@ object WatchManager {
             )
     }
 
-    fun getBloodPressure(context: Context, date: String, completion: (Result<String>) -> Unit) {
+    fun getBloodPressure(context: Context, date: String, completion: (Result<Pair<String, String>>) -> Unit) {
         VPOperateManager.getMangerInstance(context)
             .confirmDevicePwd({}, { _ ->
                 VPOperateManager.getMangerInstance(context).readDetectBP(writeResponse) {
-                    completion(Result.success(it.toString()))
+                    val bloodPressure = "${it.highPressure}/${it.lowPressure}"
+                    completion(Result.success(Pair("BLOOD_PRESSURE", bloodPressure)))
                 }
             }, {}, object : ISocialMsgDataListener {
                 override fun onSocialMsgSupportDataChange(p0: FunctionSocailMsgData?) {}
@@ -91,11 +102,14 @@ object WatchManager {
             }, "0000", false)
     }
 
-    fun getPedometer(context: Context, date: String, completion: (Result<String>) -> Unit) {
+    fun getPedometer(context: Context, date: String, completion: (Result<Pair<String, String>>) -> Unit) {
         VPOperateManager.getMangerInstance(context)
             .confirmDevicePwd({}, { _ ->
                 VPOperateManager.getMangerInstance(context).readSportStep(writeResponse) {
-                    completion(Result.success(it.toString()))
+                    val steps = it.step
+                    val distance = it.dis
+                    val stepsAndDistance = "${it.step}/${it.dis}"
+                    completion(Result.success(Pair("STEPS_AND_DISTANCE", stepsAndDistance)))
                 }
             }, {}, object : ISocialMsgDataListener {
                 override fun onSocialMsgSupportDataChange(p0: FunctionSocailMsgData?) {}

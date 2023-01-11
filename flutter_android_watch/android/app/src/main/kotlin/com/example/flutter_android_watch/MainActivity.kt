@@ -17,6 +17,16 @@ import kotlin.random.Random
             CHANNEL
         ).setMethodCallHandler { call, result ->
             methodChannelResult = result
+            if (call.method == "isConnected") {
+                WatchManager.isConnected(applicationContext) { resultValue ->
+                    result.success(resultValue.toString())
+                }
+            }
+            if (call.method == "disconnect") {
+                WatchManager.disconnect(applicationContext) { resultValue ->
+                    result.success(resultValue.toString())
+                }
+            }
             if (call.method == "startScan") {
                 WatchManager.startScan(applicationContext) { resultValue ->
                     Log.d("WatchManager", resultValue.toString())
