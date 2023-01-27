@@ -8,10 +8,12 @@ import com.inuker.bluetooth.library.Code
 import com.inuker.bluetooth.library.search.SearchResult
 import com.inuker.bluetooth.library.search.response.SearchResponse
 import com.veepoo.protocol.VPOperateManager
-import io.flutter.Log
 import com.veepoo.protocol.listener.base.IBleWriteResponse
+import com.veepoo.protocol.listener.data.IBPDetectDataListener
 import com.veepoo.protocol.listener.data.ISocialMsgDataListener
 import com.veepoo.protocol.model.datas.FunctionSocailMsgData
+import com.veepoo.protocol.model.enums.EBPDetectModel
+import io.flutter.Log
 
 object WatchManager {
 
@@ -92,10 +94,22 @@ object WatchManager {
     fun getBloodPressure(context: Context, date: String, completion: (Result<Pair<String, String>>) -> Unit) {
         VPOperateManager.getMangerInstance(context)
             .confirmDevicePwd({}, { _ ->
-                VPOperateManager.getMangerInstance(context).readDetectBP(writeResponse) {
-                    val bloodPressure = "${it.highPressure}/${it.lowPressure}"
-                    completion(Result.success(Pair("BLOOD_PRESSURE", bloodPressure)))
+                val response = object : IBleWriteResponse {
+                    override fun onResponse(var1: Int) {
+                        // handle response
+                    }
                 }
+                val listener = IBPDetectDataListener {
+                    // handle data change
+                    if (it.progress == 100) {
+                        val bloodPressure = "${it.highPressure}/${it.lowPressure}"
+                        completion(Result.success(Pair("BLOOD_PRESSURE", bloodPressure)))
+                    } else {
+                        println(it)
+                    }
+                }
+                val model = EBPDetectModel.DETECT_MODEL_PUBLIC
+                VPOperateManager.getMangerInstance(context).startDetectBP(response, listener, model)
             }, {}, object : ISocialMsgDataListener {
                 override fun onSocialMsgSupportDataChange(p0: FunctionSocailMsgData?) {}
                 override fun onSocialMsgSupportDataChange2(p0: FunctionSocailMsgData?) {}
