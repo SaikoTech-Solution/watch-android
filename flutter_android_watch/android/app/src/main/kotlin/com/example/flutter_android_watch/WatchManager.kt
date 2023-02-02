@@ -8,6 +8,7 @@ import com.inuker.bluetooth.library.Code
 import com.inuker.bluetooth.library.search.SearchResult
 import com.inuker.bluetooth.library.search.response.SearchResponse
 import com.veepoo.protocol.VPOperateManager
+import com.veepoo.protocol.listener.base.IABluetoothStateListener
 import com.veepoo.protocol.listener.base.IBleWriteResponse
 import com.veepoo.protocol.listener.data.IBPDetectDataListener
 import com.veepoo.protocol.listener.data.ISocialMsgDataListener
@@ -23,6 +24,16 @@ object WatchManager {
     fun isConnected(context: Context, completion: (Result<Pair<String, String>>) -> Unit) {
         val isConnected = VPOperateManager.getMangerInstance(context).isNetworkConnected(context).toString()
         completion(Result.success(Pair("isConnected", isConnected.toString())))
+    }
+
+    private fun registerBluetoothStateListener(context: Context) {
+        VPOperateManager.getMangerInstance(context).registerBluetoothStateListener(mBluetoothStateListener)
+    }
+
+    private val mBluetoothStateListener = object : IABluetoothStateListener() {
+        override fun onBluetoothStateChanged(openOrClosed: Boolean) {
+            print(openOrClosed)
+        }
     }
 
     fun disconnect(context: Context, completion: (Result<Pair<String, String>>) -> Unit) {
@@ -80,8 +91,10 @@ object WatchManager {
             .confirmDevicePwd({}, { _ ->
                 VPOperateManager.getMangerInstance(context).startDetectHeart(writeResponse) {
                     val heartRate = it.data
-                    completion(Result.success(Pair("HEART_RATE", heartRate.toString())))
-                    VPOperateManager.getMangerInstance(context).stopDetectHeart(writeResponse)
+                    if (heartRate != 0) {
+                        completion(Result.success(Pair("HEART_RATE", heartRate.toString())))
+                        VPOperateManager.getMangerInstance(context).stopDetectHeart(writeResponse)
+                    }
                 }
             }, {}, object : ISocialMsgDataListener {
                 override fun onSocialMsgSupportDataChange(p0: FunctionSocailMsgData?) {}
