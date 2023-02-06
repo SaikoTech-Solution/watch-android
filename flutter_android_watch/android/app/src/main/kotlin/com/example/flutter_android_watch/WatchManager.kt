@@ -15,6 +15,8 @@ import com.veepoo.protocol.listener.data.ISocialMsgDataListener
 import com.veepoo.protocol.model.datas.FunctionSocailMsgData
 import com.veepoo.protocol.model.enums.EBPDetectModel
 import io.flutter.Log
+import java.util.Timer
+import java.util.TimerTask
 
 object WatchManager {
 
@@ -83,16 +85,23 @@ object WatchManager {
         peripherals.add(searchResult)
     }
 
-
-
-    fun getHeartRate(context: Context, date: String, completion: (Result<Pair<String, String>>) -> Unit)  {
+    fun getHeartRate(context: Context, date: String,  completion: (Result<Pair<String, String>>) -> Unit) {
         VPOperateManager.getMangerInstance(context)
             .confirmDevicePwd({}, { _ ->
+
                 VPOperateManager.getMangerInstance(context).startDetectHeart(writeResponse) {
                     val heartRate = it.data
                     if (heartRate != 0) {
                         completion(Result.success(Pair("HEART_RATE", heartRate.toString())))
                         VPOperateManager.getMangerInstance(context).stopDetectHeart(writeResponse)
+                    } else {
+                        val timer = Timer()
+                        timer.schedule(object : TimerTask() {
+                            override fun run() {
+                                completion(Result.success(Pair("HEART_RATE", "0")))
+                                timer.cancel()
+                            }
+                        }, 5000)
                     }
                 }
             }, {}, object : ISocialMsgDataListener {
