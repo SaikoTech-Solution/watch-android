@@ -20,24 +20,31 @@ object WatchManager {
 
     private var peripherals = sortedSetOf<SearchResult>({ s1, s2 -> s2.rssi - s1.rssi })
     private val writeResponse = IBleWriteResponse {}
+    private var isConnected = false
 
     fun isConnected(context: Context, completion: (Result<Pair<String, String>>) -> Unit) {
-        val isConnected = VPOperateManager.getMangerInstance(context).isNetworkConnected(context).toString()
+        val mBluetoothStateListener = object : IABluetoothStateListener() {
+            override fun onBluetoothStateChanged(openOrClosed: Boolean) {
+                isConnected = openOrClosed
+            }
+        }
+        val managerInstance = VPOperateManager.getMangerInstance(context)
+        managerInstance.registerBluetoothStateListener(mBluetoothStateListener)
         completion(Result.success(Pair("isConnected", isConnected.toString())))
     }
-
-    private fun registerBluetoothStateListener(context: Context) {
-        VPOperateManager.getMangerInstance(context).registerBluetoothStateListener(mBluetoothStateListener)
+    fun startConnection(context: Context, deviceAddress: String, onComplete: (Result<Map<String, Boolean>>) -> Unit) {
+        VPOperateManager.getMangerInstance(context).stopScanDevice()
+        VPOperateManager.getMangerInstance(context)
+            .connectDevice(deviceAddress, { connectState, _, _ ->
+                if (connectState == Code.REQUEST_SUCCESS) {
+                    isConnected = true
+                    onComplete(Result.success(mapOf("startConnection" to true)))
+                }
+            }) { _ -> }
     }
-
-    private val mBluetoothStateListener = object : IABluetoothStateListener() {
-        override fun onBluetoothStateChanged(openOrClosed: Boolean) {
-            print(openOrClosed)
-        }
-    }
-
     fun disconnect(context: Context, completion: (Result<Pair<String, String>>) -> Unit) {
         VPOperateManager.getMangerInstance(context).disconnectWatch {
+            isConnected = false
             completion(Result.success(Pair("disconnect", true.toString())))
         }
     }
@@ -76,15 +83,7 @@ object WatchManager {
         peripherals.add(searchResult)
     }
 
-    fun startConnection(context: Context, deviceAddress: String, onComplete: (Result<Map<String, Boolean>>) -> Unit) {
-        VPOperateManager.getMangerInstance(context).stopScanDevice()
-        VPOperateManager.getMangerInstance(context)
-            .connectDevice(deviceAddress, { connectState, _, _ ->
-                if (connectState == Code.REQUEST_SUCCESS) {
-                    onComplete(Result.success(mapOf("startConnection" to true)))
-                }
-            }) { _ -> }
-    }
+
 
     fun getHeartRate(context: Context, date: String, completion: (Result<Pair<String, String>>) -> Unit)  {
         VPOperateManager.getMangerInstance(context)
