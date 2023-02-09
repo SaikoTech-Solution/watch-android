@@ -86,74 +86,98 @@ object WatchManager {
     }
 
     fun getHeartRate(context: Context, date: String,  completion: (Result<Pair<String, String>>) -> Unit) {
-        VPOperateManager.getMangerInstance(context)
-            .confirmDevicePwd({}, { _ ->
+        if (!isConnected) {
+            completion(Result.failure(Exception("Watch is not connected")))
+        } else {
+            VPOperateManager.getMangerInstance(context)
+                .confirmDevicePwd({}, { _ ->
 
-                VPOperateManager.getMangerInstance(context).startDetectHeart(writeResponse) {
-                    val heartRate = it.data
-                    if (heartRate != 0) {
-                        completion(Result.success(Pair("HEART_RATE", heartRate.toString())))
-                        VPOperateManager.getMangerInstance(context).stopDetectHeart(writeResponse)
-                    } else {
-                        val timer = Timer()
-                        timer.schedule(object : TimerTask() {
-                            override fun run() {
-                                completion(Result.success(Pair("HEART_RATE", "0")))
-                                timer.cancel()
-                            }
-                        }, 5000)
+                    VPOperateManager.getMangerInstance(context).startDetectHeart(writeResponse) {
+                        val heartRate = it.data
+                        if (heartRate != 0) {
+                            completion(
+                                Result.success(
+                                    Pair(
+                                        "HEART_RATE",
+                                        heartRate.toString()
+                                    )
+                                )
+                            )
+                            VPOperateManager.getMangerInstance(context)
+                                .stopDetectHeart(writeResponse)
+                        } else {
+                            val timer = Timer()
+                            timer.schedule(object : TimerTask() {
+                                override fun run() {
+                                    completion(Result.success(Pair("HEART_RATE", "0")))
+                                    timer.cancel()
+                                }
+                            }, 5000)
+                        }
                     }
-                }
-            }, {}, object : ISocialMsgDataListener {
-                override fun onSocialMsgSupportDataChange(p0: FunctionSocailMsgData?) {}
-                override fun onSocialMsgSupportDataChange2(p0: FunctionSocailMsgData?) {}
-            },
-                "0000", false
-            )
+                }, {}, object : ISocialMsgDataListener {
+                    override fun onSocialMsgSupportDataChange(p0: FunctionSocailMsgData?) {}
+                    override fun onSocialMsgSupportDataChange2(p0: FunctionSocailMsgData?) {}
+                },
+                    "0000", false
+                )
+        }
     }
 
     fun getBloodPressure(context: Context, date: String, completion: (Result<Pair<String, String>>) -> Unit) {
-        VPOperateManager.getMangerInstance(context)
-            .confirmDevicePwd({}, { _ ->
-                val response = object : IBleWriteResponse {
-                    override fun onResponse(var1: Int) {
+        if (!isConnected) {
+            completion(Result.failure(Exception("Watch is not connected")))
+        } else {
+            VPOperateManager.getMangerInstance(context)
+                .confirmDevicePwd({}, { _ ->
+                    val response = IBleWriteResponse {
                         // handle response
                     }
-                }
-                val listener = IBPDetectDataListener {
-                    // handle data change
-                    if (it.progress == 100) {
-                        val bloodPressure = "${it.highPressure}/${it.lowPressure}"
-                        completion(Result.success(Pair("BLOOD_PRESSURE", bloodPressure)))
-                    } else {
-                        println(it)
+                    val listener = IBPDetectDataListener {
+                        // handle data change
+                        if (it.progress == 100) {
+                            val bloodPressure = "${it.highPressure}/${it.lowPressure}"
+                            completion(Result.success(Pair("BLOOD_PRESSURE", bloodPressure)))
+                        } else {
+                            println(it)
+                        }
                     }
-                }
-                val model = EBPDetectModel.DETECT_MODEL_PUBLIC
-                VPOperateManager.getMangerInstance(context).startDetectBP(response, listener, model)
-            }, {}, object : ISocialMsgDataListener {
-                override fun onSocialMsgSupportDataChange(p0: FunctionSocailMsgData?) {}
-                override fun onSocialMsgSupportDataChange2(p0: FunctionSocailMsgData?) {}
-            }, "0000", false)
+                    val model = EBPDetectModel.DETECT_MODEL_PUBLIC
+                    VPOperateManager.getMangerInstance(context)
+                        .startDetectBP(response, listener, model)
+                }, {}, object : ISocialMsgDataListener {
+                    override fun onSocialMsgSupportDataChange(p0: FunctionSocailMsgData?) {}
+                    override fun onSocialMsgSupportDataChange2(p0: FunctionSocailMsgData?) {}
+                }, "0000", false)
+        }
     }
 
     fun getPedometer(context: Context, date: String, completion: (Result<Pair<String, String>>) -> Unit) {
-        VPOperateManager.getMangerInstance(context)
-            .confirmDevicePwd({}, { _ ->
-                VPOperateManager.getMangerInstance(context).readSportStep(writeResponse) {
-                    val steps = it.step
-                    val distance = it.dis
-                    val stepsAndDistance = "${it.step}/${it.dis}"
-                    completion(Result.success(Pair("STEPS_AND_DISTANCE", stepsAndDistance)))
-                }
-            }, {}, object : ISocialMsgDataListener {
-                override fun onSocialMsgSupportDataChange(p0: FunctionSocailMsgData?) {}
-                override fun onSocialMsgSupportDataChange2(p0: FunctionSocailMsgData?) {}
-            }, "0000", false)
+        if (!isConnected) {
+            completion(Result.failure(Exception("Watch is not connected")))
+        } else {
+
+            VPOperateManager.getMangerInstance(context)
+                .confirmDevicePwd({}, { _ ->
+                    VPOperateManager.getMangerInstance(context).readSportStep(writeResponse) {
+                        val steps = it.step
+                        val distance = it.dis
+                        val stepsAndDistance = "${it.step}/${it.dis}"
+                        completion(Result.success(Pair("STEPS_AND_DISTANCE", stepsAndDistance)))
+                    }
+                }, {}, object : ISocialMsgDataListener {
+                    override fun onSocialMsgSupportDataChange(p0: FunctionSocailMsgData?) {}
+                    override fun onSocialMsgSupportDataChange2(p0: FunctionSocailMsgData?) {}
+                }, "0000", false)
+        }
     }
 
     /*
     fun getSleep(context: Context, date: String, completion: (Result<String>) -> Unit) {
+        if (!isConnected) {
+            completion(Result.failure(Exception("Watch is not connected")))
+        }
+
         VPOperateManager.getMangerInstance(context)
             .confirmDevicePwd({}, { _ ->
 
