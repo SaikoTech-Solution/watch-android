@@ -84,10 +84,13 @@ object WatchManager {
     private fun addPeripheralToDeviceArray(searchResult: SearchResult) {
         peripherals.add(searchResult)
     }
-
     fun getHeartRate(context: Context, date: String,  completion: (Result<Pair<String, String>>) -> Unit) {
+        var completionCalled = false
         if (!isConnected) {
-            completion(Result.failure(Exception("Watch is not connected")))
+            if (!completionCalled) {
+                completionCalled = true
+                completion(Result.failure(Exception("Watch is not connected")))
+            }
         } else {
             VPOperateManager.getMangerInstance(context)
                 .confirmDevicePwd({}, { _ ->
@@ -95,24 +98,22 @@ object WatchManager {
                     VPOperateManager.getMangerInstance(context).startDetectHeart(writeResponse) {
                         val heartRate = it.data
                         if (heartRate != 0) {
-                            completion(
-                                Result.success(
-                                    Pair(
-                                        "HEART_RATE",
-                                        heartRate.toString()
-                                    )
-                                )
-                            )
-                            VPOperateManager.getMangerInstance(context)
-                                .stopDetectHeart(writeResponse)
+                            if (!completionCalled) {
+                                completionCalled = true
+                                completion(Result.success(Pair("HEART_RATE", heartRate.toString())))
+                                VPOperateManager.getMangerInstance(context).stopDetectHeart(writeResponse)
+                            }
                         } else {
                             val timer = Timer()
                             timer.schedule(object : TimerTask() {
                                 override fun run() {
-                                    completion(Result.success(Pair("HEART_RATE", "0")))
+                                    if (!completionCalled) {
+                                        completionCalled = true
+                                        completion(Result.success(Pair("HEART_RATE", "0")))
+                                    }
                                     timer.cancel()
                                 }
-                            }, 5000)
+                            }, 10000)
                         }
                     }
                 }, {}, object : ISocialMsgDataListener {
